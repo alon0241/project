@@ -1,0 +1,145 @@
+import pygame
+import random
+import sys
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+BLUE = (106, 159, 181)
+
+# Bird properties
+BIRD_WIDTH = 40
+BIRD_HEIGHT = 30
+BIRD_X = 100
+bird_y = SCREEN_HEIGHT // 2
+GRAVITY = 0.25
+FLAP_SPEED = -7
+MAX_SPEED = 10
+
+# Obstacle properties
+PIPE_WIDTH = 80
+PIPE_GAP = 200
+PIPE_VELOCITY = 5
+pipe_x = SCREEN_WIDTH
+pipe_width = PIPE_WIDTH
+pipe_gap = PIPE_GAP
+pipes = []
+
+# Ground properties
+GROUND_HEIGHT = 100
+
+# Game variables
+score = 0
+obstacles_passed = 0
+MAX_OBSTACLES = 10
+
+# Font
+font = pygame.font.Font(None, 36)
+
+# Create the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Flappy Bird")
+
+# Load images
+background_img = pygame.image.load('background.png').convert()
+background_img = pygame.transform.scale(background_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+bird_img = pygame.image.load('bird.png').convert_alpha()
+bird_img = pygame.transform.scale(bird_img, (BIRD_WIDTH, BIRD_HEIGHT))
+
+pipe_img = pygame.image.load('pipe.png').convert_alpha()
+pipe_img = pygame.transform.scale(pipe_img, (PIPE_WIDTH, SCREEN_HEIGHT))
+
+ground_img = pygame.image.load('ground.png').convert_alpha()
+ground_img = pygame.transform.scale(ground_img, (SCREEN_WIDTH, GROUND_HEIGHT))
+
+# Generate obstacles
+def generate_obstacles():
+    global pipes, pipe_x
+    pipes = []
+    for _ in range(MAX_OBSTACLES):
+        pipe_height = random.randint(50, SCREEN_HEIGHT - PIPE_GAP - GROUND_HEIGHT - 50)
+        pipes.append([pipe_x, pipe_height])
+        pipe_x += 300
+
+# Main game loop
+def main():
+    global bird_y, pipes, score, obstacles_passed
+    
+    clock = pygame.time.Clock()
+
+    generate_obstacles()
+
+    bird_speed = FLAP_SPEED
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    bird_speed = FLAP_SPEED
+
+        # Bird acceleration due to gravity
+        bird_speed += GRAVITY
+        bird_speed = min(bird_speed, MAX_SPEED)
+        bird_y += bird_speed
+
+        # Move pipes
+        for pipe in pipes:
+            pipe[0] -= PIPE_VELOCITY
+
+        # Check for collision with ground
+        if bird_y + BIRD_HEIGHT >= SCREEN_HEIGHT - GROUND_HEIGHT:
+            game_over()
+
+        # Generate new pipe if the first pipe goes off the screen
+        if pipes[0][0] < -PIPE_WIDTH:
+            pipes.pop(0)
+            pipe_height = random.randint(50, SCREEN_HEIGHT - PIPE_GAP - GROUND_HEIGHT - 50)
+            pipes.append([pipes[-1][0] + 300, pipe_height])
+            obstacles_passed += 1
+            bird_speed += 0.5  # Accelerate bird after passing obstacle
+
+        # Check for collision with pipes
+        for pipe in pipes:
+            if (BIRD_X + BIRD_WIDTH > pipe[0] and BIRD_X < pipe[0] + PIPE_WIDTH and
+                    (bird_y < pipe[1] or bird_y + BIRD_HEIGHT > pipe[1] + PIPE_GAP)):
+                game_over()
+
+        # Draw everything
+        screen.blit(background_img, (0, 0))
+        for pipe in pipes:
+            screen.blit(pipe_img, (pipe[0], pipe[1] - SCREEN_HEIGHT))
+            screen.blit(pygame.transform.flip(pipe_img, False, True), (pipe[0], pipe[1] + PIPE_GAP))
+        screen.blit(bird_img, (BIRD_X, bird_y))
+        screen.blit(ground_img, (0, SCREEN_HEIGHT - GROUND_HEIGHT))
+
+        # Display score
+        score_text = font.render(f"Obstacles passed: {obstacles_passed}", True, WHITE)
+        screen.blit(score_text, (10, 10))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+# Game over function
+def game_over():
+    global score, obstacles_passed
+    game_over_text = font.render(f"Game Over! Obstacles passed: {obstacles_passed}", True, WHITE)
+    screen.blit(game_over_text, (SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT // 2 - 50))
+    pygame.display.flip()
+    pygame.time.delay(2000)
+    score = 0
+    obstacles_passed = 0
+    generate_obstacles()
+
+if __name__ == "__main__":
+    main()
